@@ -1,0 +1,997 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QR &amp; Barcode Generator</title>
+<style>
+  :root {
+    --bg: #f4f6fb;
+    --surface: #ffffff;
+    --surface-alt: #f1f4f9;
+    --border: #e2e8f0;
+    --border-strong: #cbd5e1;
+    --text: #0f172a;
+    --text-muted: #64748b;
+    --primary: #4f46e5;
+    --primary-hover: #4338ca;
+    --primary-ring: rgba(79, 70, 229, 0.18);
+    --danger: #dc2626;
+    --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
+    --shadow-md: 0 1px 3px rgba(15, 23, 42, 0.06), 0 4px 16px rgba(15, 23, 42, 0.05);
+    --radius: 12px;
+    --radius-sm: 8px;
+    --radius-xs: 6px;
+    --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --checker: #e3e8ef;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0b1220;
+      --surface: #131a2b;
+      --surface-alt: #1a2236;
+      --border: #273349;
+      --border-strong: #364463;
+      --text: #e6ecf5;
+      --text-muted: #94a3b8;
+      --primary: #818cf8;
+      --primary-hover: #a5b4fc;
+      --primary-ring: rgba(129, 140, 248, 0.25);
+      --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+      --shadow-md: 0 1px 3px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.35);
+      --checker: #232c40;
+    }
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+
+  html, body { height: 100%; }
+
+  body {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-size: 15px;
+    line-height: 1.5;
+    color: var(--text);
+    background: var(--bg);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  header {
+    padding: 1.25rem 2rem;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+
+  header .brand {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    max-width: 1320px;
+    margin: 0 auto;
+  }
+
+  header h1 {
+    margin: 0;
+    font-size: 1.125rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+
+  header h1 .accent { color: var(--primary); }
+
+  header .tagline {
+    margin-left: auto;
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+  }
+
+  main {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+    gap: 1.25rem;
+    padding: 1.5rem;
+    max-width: 1320px;
+    margin: 0 auto;
+  }
+
+  @media (max-width: 960px) {
+    main { grid-template-columns: 1fr; padding: 1rem; gap: 1rem; }
+    header { padding: 1rem; }
+    header .tagline { display: none; }
+  }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-md);
+    padding: 1.5rem;
+  }
+
+  .panel h2 {
+    margin: 0 0 0.875rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+  }
+
+  .section + .section { margin-top: 1.25rem; padding-top: 1.25rem; border-top: 1px solid var(--border); }
+
+  .field { margin-bottom: 0.875rem; }
+  .field:last-child { margin-bottom: 0; }
+
+  .field > label,
+  .field-label {
+    display: block;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    margin-bottom: 0.375rem;
+    color: var(--text);
+  }
+
+  input[type="text"],
+  input[type="number"],
+  textarea,
+  select {
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-xs);
+    font-family: inherit;
+    font-size: 0.9375rem;
+    background: var(--surface);
+    color: var(--text);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  input[type="text"]:focus,
+  input[type="number"]:focus,
+  textarea:focus,
+  select:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-ring);
+  }
+
+  textarea {
+    resize: vertical;
+    min-height: 4.5rem;
+    font-family: var(--font-mono);
+    font-size: 0.875rem;
+  }
+
+  select {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M2.5 4.5L6 8L9.5 4.5' stroke='%2364748b' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.625rem center;
+    padding-right: 2rem;
+  }
+
+  .field-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+  }
+
+  .color-field {
+    display: flex;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+
+  .color-field input[type="color"] {
+    width: 2.5rem;
+    min-width: 2.5rem;
+    height: auto;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-xs);
+    cursor: pointer;
+    background: var(--surface);
+    padding: 2px;
+  }
+
+  .color-field input[type="text"] {
+    flex: 1;
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    text-transform: uppercase;
+  }
+
+  .slider-field {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+  }
+
+  input[type="range"] {
+    flex: 1;
+    height: 1.25rem;
+    accent-color: var(--primary);
+    margin: 0;
+  }
+
+  .slider-value {
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+    min-width: 3.5rem;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .checkbox-field {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    user-select: none;
+    font-size: 0.875rem;
+    padding: 0.25rem 0;
+  }
+
+  .checkbox-field input[type="checkbox"] {
+    width: 1rem;
+    height: 1rem;
+    accent-color: var(--primary);
+    cursor: pointer;
+    margin: 0;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.25rem;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-family: inherit;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.05s ease, box-shadow 0.15s ease;
+    width: 100%;
+    color: white;
+    background: var(--primary);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .btn:hover { background: var(--primary-hover); }
+  .btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+  .btn:active { transform: translateY(1px); }
+  .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+  .btn svg { width: 16px; height: 16px; }
+
+  .preview-area {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-sm);
+    padding: 1.5rem;
+    min-height: 360px;
+    background-color: var(--surface-alt);
+    background-image:
+      linear-gradient(45deg, var(--checker) 25%, transparent 25%),
+      linear-gradient(-45deg, var(--checker) 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, var(--checker) 75%),
+      linear-gradient(-45deg, transparent 75%, var(--checker) 75%);
+    background-size: 16px 16px;
+    background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+  }
+
+  .preview-canvas-wrap {
+    max-width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .preview-canvas-wrap canvas {
+    max-width: 100%;
+    max-height: 60vh;
+    height: auto;
+    display: block;
+    border-radius: 4px;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.12);
+  }
+
+  .preview-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 0.875rem;
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+  }
+
+  .preview-meta .dim {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .hint {
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+    margin-top: 0.375rem;
+    min-height: 1.25rem;
+  }
+
+  .error {
+    color: var(--danger);
+    font-size: 0.8125rem;
+    margin-top: 0.5rem;
+    display: none;
+    background: rgba(220, 38, 38, 0.08);
+    padding: 0.5rem 0.75rem;
+    border-radius: var(--radius-xs);
+    border: 1px solid rgba(220, 38, 38, 0.2);
+  }
+
+  .error.show { display: block; }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--surface-alt);
+    color: var(--text-muted);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    border: 1px solid var(--border);
+  }
+
+  /* Visually-hidden label for screen-reader-only text */
+  .sr-only {
+    position: absolute;
+    width: 1px; height: 1px;
+    padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0 0 0 0);
+    white-space: nowrap; border: 0;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <h1>QR <span class="accent">&amp;</span> Barcode Generator</h1>
+    <span class="tagline">High-quality codes &middot; PNG export up to 4096&times;</span>
+  </div>
+</header>
+
+<main>
+  <section class="panel" aria-label="Generator controls">
+    <div class="section">
+      <h2>Format</h2>
+      <div class="field">
+        <label for="format">Code type</label>
+        <select id="format" aria-describedby="content-hint">
+          <option value="qr">QR Code</option>
+          <option value="code128">Code 128</option>
+          <option value="code39">Code 39</option>
+          <option value="ean13">EAN-13</option>
+          <option value="ean8">EAN-8</option>
+          <option value="upca">UPC-A</option>
+          <option value="itf">ITF (Interleaved 2 of 5)</option>
+          <option value="datamatrix">Data Matrix</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="content">Content</label>
+        <textarea id="content" rows="2" spellcheck="false" aria-describedby="content-hint"></textarea>
+        <div id="content-hint" class="hint"></div>
+        <div id="error" class="error" role="alert" aria-live="polite"></div>
+      </div>
+    </div>
+
+    <div class="section" id="qr-options" hidden>
+      <h2>QR Options <span class="badge">QR</span></h2>
+      <div class="field-row">
+        <div class="field">
+          <label for="qr-error">Error correction</label>
+          <select id="qr-error">
+            <option value="L">L &mdash; ~7% recovery</option>
+            <option value="M" selected>M &mdash; ~15% recovery</option>
+            <option value="Q">Q &mdash; ~25% recovery</option>
+            <option value="H">H &mdash; ~30% recovery</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="qr-quiet">Quiet zone</label>
+          <div class="slider-field">
+            <input type="range" id="qr-quiet" min="0" max="128" value="32" step="4">
+            <span class="slider-value" id="qr-quiet-val">32</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section" id="barcode-options" hidden>
+      <h2>Barcode Options <span class="badge">1D</span></h2>
+      <div class="field-row">
+        <div class="field">
+          <label for="bar-width">Bar width</label>
+          <div class="slider-field">
+            <input type="range" id="bar-width" min="1" max="6" value="2" step="0.5">
+            <span class="slider-value" id="bar-width-val">2</span>
+          </div>
+        </div>
+        <div class="field">
+          <label for="bar-height">Bar height</label>
+          <div class="slider-field">
+            <input type="range" id="bar-height" min="40" max="240" value="100">
+            <span class="slider-value" id="bar-height-val">100</span>
+          </div>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <span class="field-label">Caption</span>
+          <label class="checkbox-field">
+            <input type="checkbox" id="display-value" checked>
+            Show value below bars
+          </label>
+        </div>
+        <div class="field">
+          <label for="font-size">Caption font size</label>
+          <div class="slider-field">
+            <input type="range" id="font-size" min="10" max="36" value="20">
+            <span class="slider-value" id="font-size-val">20</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Appearance</h2>
+      <div class="field-row">
+        <div class="field">
+          <label for="fg-color">Foreground</label>
+          <div class="color-field">
+            <input type="color" id="fg-color" value="#000000" aria-label="Foreground color picker">
+            <input type="text" id="fg-hex" value="#000000" maxlength="7" aria-label="Foreground hex value" spellcheck="false">
+          </div>
+        </div>
+        <div class="field">
+          <label for="bg-color">Background</label>
+          <div class="color-field">
+            <input type="color" id="bg-color" value="#ffffff" aria-label="Background color picker">
+            <input type="text" id="bg-hex" value="#ffffff" maxlength="7" aria-label="Background hex value" spellcheck="false">
+          </div>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <span class="field-label">Background</span>
+          <label class="checkbox-field">
+            <input type="checkbox" id="transparent">
+            Transparent
+          </label>
+        </div>
+        <div class="field">
+          <label for="padding">Padding</label>
+          <div class="slider-field">
+            <input type="range" id="padding" min="0" max="96" value="16">
+            <span class="slider-value" id="padding-val">16</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Export</h2>
+      <div class="field">
+        <label for="filename">Filename</label>
+        <input type="text" id="filename" value="generated-code" spellcheck="false">
+      </div>
+      <div class="field">
+        <label for="export-size">Resolution</label>
+        <div class="slider-field">
+          <input type="range" id="export-size" min="1024" max="4096" value="2048" step="128">
+          <span class="slider-value" id="export-size-val">2048&nbsp;px</span>
+        </div>
+        <div class="hint">PNG width in pixels. Height scales to the code aspect ratio.</div>
+      </div>
+      <button class="btn" id="export-btn" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        Download PNG
+      </button>
+    </div>
+  </section>
+
+  <section class="panel" aria-label="Live preview">
+    <h2>Live Preview</h2>
+    <div class="preview-area">
+      <div class="preview-canvas-wrap">
+        <canvas id="preview-canvas" aria-label="Generated code preview"></canvas>
+      </div>
+    </div>
+    <div class="preview-meta">
+      <span id="preview-status">Ready</span>
+      <span class="dim" id="preview-dim">&mdash;</span>
+    </div>
+  </section>
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ---------- CDN loader with fallbacks ----------
+     The encoding libraries are pulled at open time. Each library is
+     tried across multiple CDN mirrors so a single mirror going down (or
+     a corporate firewall blocking one host) does not break the tool.
+     We verify the expected global is present after each load and only
+     advance to the next mirror if the previous attempt did not expose
+     the symbol we need.
+  */
+  const REQUIRED_LIBS = [
+    {
+      name: 'QRious',
+      check: () => typeof window.QRious === 'function',
+      urls: [
+        'https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js',
+        'https://cdn.jsdelivr.net/npm/qrious@4.0.2/dist/qrious.min.js',
+        'https://unpkg.com/qrious@4.0.2/dist/qrious.min.js',
+      ],
+    },
+    {
+      name: 'JsBarcode',
+      check: () => typeof window.JsBarcode === 'function',
+      urls: [
+        'https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js',
+        'https://unpkg.com/jsbarcode@3.11.6/dist/JsBarcode.all.min.js',
+        'https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.6/JsBarcode.all.min.js',
+      ],
+    },
+    {
+      name: 'bwip-js',
+      check: () => typeof window.bwipjs !== 'undefined' && typeof window.bwipjs.toCanvas === 'function',
+      urls: [
+        'https://cdn.jsdelivr.net/npm/bwip-js@4.5.1/dist/bwip-js-min.js',
+        'https://unpkg.com/bwip-js@4.5.1/dist/bwip-js-min.js',
+        'https://cdn.jsdelivr.net/npm/bwip-js@4.5.1/dist/bwip-js.js',
+      ],
+    },
+  ];
+
+  function loadScript(url) {
+    return new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = url;
+      s.async = false;
+      s.onload = () => resolve();
+      s.onerror = () => reject(new Error('network'));
+      document.head.appendChild(s);
+    });
+  }
+
+  async function loadLibrary(lib) {
+    if (lib.check()) return true;
+    for (let i = 0; i < lib.urls.length; i++) {
+      try {
+        await loadScript(lib.urls[i]);
+        if (lib.check()) return true;
+      } catch (_) { /* try the next mirror */ }
+    }
+    return false;
+  }
+
+  async function loadAllLibraries() {
+    const results = await Promise.all(REQUIRED_LIBS.map(loadLibrary));
+    const failed = REQUIRED_LIBS.filter((_, i) => !results[i]).map(l => l.name);
+    if (failed.length) {
+      throw new Error('Could not load required libraries: ' + failed.join(', ') +
+        '. Make sure your network allows access to jsDelivr, unpkg, or cdnjs and reload the page.');
+    }
+  }
+
+  /* ---------- DOM lookup helpers ---------- */
+  const $ = (id) => document.getElementById(id);
+
+  const els = {
+    format:        $('format'),
+    content:       $('content'),
+    contentHint:   $('content-hint'),
+    error:         $('error'),
+    qrOptions:     $('qr-options'),
+    qrError:       $('qr-error'),
+    qrQuiet:       $('qr-quiet'),
+    qrQuietVal:    $('qr-quiet-val'),
+    barcodeOpts:   $('barcode-options'),
+    barWidth:      $('bar-width'),
+    barWidthVal:   $('bar-width-val'),
+    barHeight:     $('bar-height'),
+    barHeightVal:  $('bar-height-val'),
+    displayValue:  $('display-value'),
+    fontSize:      $('font-size'),
+    fontSizeVal:   $('font-size-val'),
+    fgColor:       $('fg-color'),
+    fgHex:         $('fg-hex'),
+    bgColor:       $('bg-color'),
+    bgHex:         $('bg-hex'),
+    transparent:   $('transparent'),
+    padding:       $('padding'),
+    paddingVal:    $('padding-val'),
+    filename:      $('filename'),
+    exportSize:    $('export-size'),
+    exportSizeVal: $('export-size-val'),
+    exportBtn:     $('export-btn'),
+    canvas:        $('preview-canvas'),
+    status:        $('preview-status'),
+    dim:           $('preview-dim'),
+  };
+
+  /* ---------- Format metadata ---------- */
+  const FORMATS = {
+    qr:         { kind: 'qr',         label: 'QR Code',   hint: 'Any text, URL, or data. Larger payloads need higher error correction.' },
+    code128:    { kind: 'barcode',    label: 'Code 128',  jb: 'CODE128', hint: 'Alphanumeric. Encodes the full printable ASCII range.' },
+    code39:     { kind: 'barcode',    label: 'Code 39',   jb: 'CODE39',  hint: 'Uppercase A–Z, 0–9, and "-. $/+%". Lowercase is not supported.' },
+    ean13:      { kind: 'barcode',    label: 'EAN-13',    jb: 'EAN13',   hint: '12 or 13 digits. A 13th check digit is computed when omitted.' },
+    ean8:       { kind: 'barcode',    label: 'EAN-8',     jb: 'EAN8',    hint: '7 or 8 digits. An 8th check digit is computed when omitted.' },
+    upca:       { kind: 'barcode',    label: 'UPC-A',     jb: 'UPC',     hint: '11 or 12 digits. The 12th check digit is computed when omitted.' },
+    itf:        { kind: 'barcode',    label: 'ITF',       jb: 'ITF',     hint: 'Digits only, with an even total length.' },
+    datamatrix: { kind: 'datamatrix', label: 'Data Matrix',                hint: 'Compact 2D code that scales from a few bytes up to ~2 KB of data.' },
+  };
+
+  const DEFAULT_CONTENT = {
+    qr:         'https://example.com',
+    code128:    'CODE-128-EXAMPLE',
+    code39:     'CODE 39',
+    ean13:      '5901234123457',
+    ean8:       '96385074',
+    upca:       '036000291452',
+    itf:        '12345670',
+    datamatrix: 'DataMatrix-Example',
+  };
+
+  /* ---------- State accessor ---------- */
+  function getState() {
+    return {
+      format:       els.format.value,
+      content:      els.content.value,
+      qrErrorLvl:   els.qrError.value,
+      qrQuiet:      parseInt(els.qrQuiet.value, 10),
+      barWidth:     parseFloat(els.barWidth.value),
+      barHeight:    parseInt(els.barHeight.value, 10),
+      displayValue: els.displayValue.checked,
+      fontSize:     parseInt(els.fontSize.value, 10),
+      fg:           normalizeHex(els.fgColor.value),
+      bg:           normalizeHex(els.bgColor.value),
+      transparent:  els.transparent.checked,
+      padding:      parseInt(els.padding.value, 10),
+      filename:     els.filename.value.trim() || 'generated-code',
+      exportSize:   parseInt(els.exportSize.value, 10),
+    };
+  }
+
+  function normalizeHex(v) {
+    const m = /^#?([0-9a-fA-F]{6})$/.exec((v || '').trim());
+    return m ? '#' + m[1].toLowerCase() : '#000000';
+  }
+
+  /* ---------- UI feedback ---------- */
+  function showError(msg) {
+    els.error.textContent = msg;
+    els.error.classList.add('show');
+    els.status.textContent = 'Error';
+  }
+  function clearError() {
+    els.error.textContent = '';
+    els.error.classList.remove('show');
+  }
+
+  function setVisibility() {
+    const meta = FORMATS[els.format.value];
+    els.qrOptions.hidden     = meta.kind !== 'qr';
+    els.barcodeOpts.hidden   = meta.kind !== 'barcode';
+    els.contentHint.textContent = meta.hint;
+  }
+
+  /* ---------- Renderers ----------
+     Each renderer fills the provided canvas with the encoded code at
+     the requested target width. Height is derived from the code's
+     natural aspect ratio. Padding is rendered as an outer frame in the
+     foreground/background colors selected by the user.
+  */
+
+  async function renderQR(canvas, s, targetW) {
+    const padding = Math.round(s.padding * targetW / 1024);
+    const inner = Math.max(64, targetW - padding * 2);
+
+    // Scale the quiet-zone selection (calibrated for a 1024px output)
+    // to the actual inner draw size so it stays visually consistent
+    // across preview and export resolutions.
+    const quietPx = Math.round(s.qrQuiet * inner / 1024);
+
+    const tmp = document.createElement('canvas');
+    new QRious({
+      element:        tmp,
+      value:          s.content,
+      size:           inner,
+      level:          s.qrErrorLvl,
+      padding:        quietPx,
+      foreground:     s.fg,
+      background:     s.bg,
+      backgroundAlpha: s.transparent ? 0 : 1,
+    });
+
+    canvas.width  = targetW;
+    canvas.height = targetW;
+    const ctx = canvas.getContext('2d');
+    paintBackground(ctx, canvas, s);
+    ctx.drawImage(tmp, padding, padding, inner, inner);
+  }
+
+  async function renderBarcode(canvas, s, targetW) {
+    const meta = FORMATS[s.format];
+    const SVG_NS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(SVG_NS, 'svg');
+
+    let valid = true;
+    JsBarcode(svg, s.content, {
+      format:       meta.jb,
+      width:        s.barWidth,
+      height:       s.barHeight,
+      displayValue: s.displayValue,
+      fontSize:     s.fontSize,
+      lineColor:    s.fg,
+      background:   s.transparent ? 'transparent' : s.bg,
+      margin:       0,
+      valid:        (v) => { valid = v; },
+    });
+    if (!valid) {
+      throw new Error('Invalid content for ' + meta.label + '. ' + meta.hint);
+    }
+
+    // Pin SVG to the inner draw size so the browser rasterizes at full fidelity.
+    const padding = Math.round(s.padding * targetW / 1024);
+    const inner = Math.max(64, targetW - padding * 2);
+    const natW = parseFloat(svg.getAttribute('width'))  || inner;
+    const natH = parseFloat(svg.getAttribute('height')) || (inner / 3);
+    const aspect = natH / natW;
+    const innerH = inner * aspect;
+
+    svg.setAttribute('viewBox', '0 0 ' + natW + ' ' + natH);
+    svg.setAttribute('width',  String(inner));
+    svg.setAttribute('height', String(innerH));
+    svg.setAttribute('xmlns', SVG_NS);
+
+    const svgString = new XMLSerializer().serializeToString(svg);
+    const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+    const url  = URL.createObjectURL(blob);
+
+    try {
+      const img = await loadImage(url);
+      canvas.width  = targetW;
+      canvas.height = Math.round(innerH + padding * 2);
+
+      const ctx = canvas.getContext('2d');
+      paintBackground(ctx, canvas, s);
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(img, padding, padding, inner, innerH);
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  }
+
+  async function renderDataMatrix(canvas, s, targetW) {
+    const tmp = document.createElement('canvas');
+    const opts = {
+      bcid: 'datamatrix',
+      text: s.content,
+      scale: 12,
+      paddingwidth: 0,
+      paddingheight: 0,
+      barcolor: s.fg.replace('#', ''),
+    };
+    if (!s.transparent) opts.backgroundcolor = s.bg.replace('#', '');
+    bwipjs.toCanvas(tmp, opts);
+
+    const padding = Math.round(s.padding * targetW / 1024);
+    const inner = Math.max(64, targetW - padding * 2);
+    const aspect = tmp.height / tmp.width;
+    const innerH = inner * aspect;
+
+    canvas.width  = targetW;
+    canvas.height = Math.round(innerH + padding * 2);
+    const ctx = canvas.getContext('2d');
+    paintBackground(ctx, canvas, s);
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(tmp, padding, padding, inner, innerH);
+  }
+
+  function paintBackground(ctx, canvas, s) {
+    if (s.transparent) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    } else {
+      ctx.fillStyle = s.bg;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+  }
+
+  function loadImage(src) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload  = () => resolve(img);
+      img.onerror = () => reject(new Error('Failed to rasterize barcode.'));
+      img.src = src;
+    });
+  }
+
+  async function renderTo(canvas, targetW) {
+    const s = getState();
+    if (!s.content.trim()) {
+      throw new Error('Enter some content to encode.');
+    }
+    const meta = FORMATS[s.format];
+    if (meta.kind === 'qr')             return renderQR(canvas, s, targetW);
+    if (meta.kind === 'barcode')        return renderBarcode(canvas, s, targetW);
+    if (meta.kind === 'datamatrix')     return renderDataMatrix(canvas, s, targetW);
+    throw new Error('Unsupported format.');
+  }
+
+  /* ---------- Preview pipeline ---------- */
+  let renderGen = 0;
+  let renderTimer = null;
+  const PREVIEW_WIDTH = 720;
+
+  function scheduleUpdate() {
+    if (renderTimer) clearTimeout(renderTimer);
+    renderTimer = setTimeout(updatePreview, 80);
+  }
+
+  async function updatePreview() {
+    const gen = ++renderGen;
+    clearError();
+    els.status.textContent = 'Rendering…';
+
+    const tmp = document.createElement('canvas');
+    try {
+      await renderTo(tmp, PREVIEW_WIDTH);
+      if (gen !== renderGen) return;
+
+      els.canvas.width  = tmp.width;
+      els.canvas.height = tmp.height;
+      els.canvas.getContext('2d').drawImage(tmp, 0, 0);
+
+      els.status.textContent = 'Ready';
+      els.dim.textContent = tmp.width + ' × ' + tmp.height + ' preview';
+    } catch (err) {
+      if (gen !== renderGen) return;
+      showError(err.message || 'Unable to render code.');
+      els.canvas.width  = 1;
+      els.canvas.height = 1;
+      els.dim.textContent = '—';
+    }
+  }
+
+  /* ---------- Export ---------- */
+  async function exportPNG() {
+    clearError();
+    els.exportBtn.disabled = true;
+    const restore = els.exportBtn.innerHTML;
+    els.exportBtn.innerHTML = 'Preparing…';
+
+    try {
+      const s = getState();
+      const canvas = document.createElement('canvas');
+      await renderTo(canvas, s.exportSize);
+
+      const link = document.createElement('a');
+      const name = s.filename.replace(/\.png$/i, '') || 'generated-code';
+      link.download = name + '.png';
+      link.href = canvas.toDataURL('image/png');
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      els.status.textContent = 'Exported ' + canvas.width + ' × ' + canvas.height + ' PNG';
+    } catch (err) {
+      showError(err.message || 'Export failed.');
+    } finally {
+      els.exportBtn.disabled = false;
+      els.exportBtn.innerHTML = restore;
+    }
+  }
+
+  /* ---------- Bindings ---------- */
+  function bindSlider(slider, valEl, suffix) {
+    slider.addEventListener('input', () => {
+      valEl.textContent = (suffix === undefined) ? slider.value : (slider.value + suffix);
+      scheduleUpdate();
+    });
+  }
+
+  function bindColor(picker, hex) {
+    picker.addEventListener('input', () => {
+      hex.value = picker.value.toUpperCase();
+      scheduleUpdate();
+    });
+    hex.addEventListener('input', () => {
+      const v = hex.value.trim();
+      if (/^#?[0-9a-fA-F]{6}$/.test(v)) {
+        const norm = v.startsWith('#') ? v : '#' + v;
+        picker.value = norm.toLowerCase();
+        scheduleUpdate();
+      }
+    });
+    hex.addEventListener('blur', () => {
+      const v = hex.value.trim();
+      if (!/^#?[0-9a-fA-F]{6}$/.test(v)) {
+        hex.value = picker.value.toUpperCase();
+      } else {
+        hex.value = (v.startsWith('#') ? v : '#' + v).toUpperCase();
+      }
+    });
+  }
+
+  function init() {
+    els.content.value = DEFAULT_CONTENT.qr;
+
+    els.format.addEventListener('change', () => {
+      els.content.value = DEFAULT_CONTENT[els.format.value] || '';
+      setVisibility();
+      scheduleUpdate();
+    });
+
+    els.content.addEventListener('input', scheduleUpdate);
+    els.qrError.addEventListener('change', scheduleUpdate);
+    bindSlider(els.qrQuiet,   els.qrQuietVal);
+    bindSlider(els.barWidth,  els.barWidthVal);
+    bindSlider(els.barHeight, els.barHeightVal);
+    els.displayValue.addEventListener('change', scheduleUpdate);
+    bindSlider(els.fontSize,  els.fontSizeVal);
+    bindColor(els.fgColor, els.fgHex);
+    bindColor(els.bgColor, els.bgHex);
+    els.transparent.addEventListener('change', scheduleUpdate);
+    bindSlider(els.padding,   els.paddingVal);
+    bindSlider(els.exportSize, els.exportSizeVal, ' px');
+    els.exportBtn.addEventListener('click', exportPNG);
+
+    // Initialize hex inputs from color pickers
+    els.fgHex.value = els.fgColor.value.toUpperCase();
+    els.bgHex.value = els.bgColor.value.toUpperCase();
+
+    setVisibility();
+    updatePreview();
+  }
+
+  async function bootstrap() {
+    els.status.textContent = 'Loading libraries…';
+    try {
+      await loadAllLibraries();
+    } catch (err) {
+      showError(err.message);
+      els.status.textContent = 'Library load failed';
+      els.exportBtn.disabled = true;
+      return;
+    }
+    init();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bootstrap);
+  } else {
+    bootstrap();
+  }
+})();
+</script>
+</body>
+</html>
