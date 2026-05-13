@@ -50,3 +50,7 @@ Works in any current release of Chrome, Firefox, Safari, or Edge. A network conn
 ## Hosting
 
 The repository can be served directly via GitHub Pages — `Settings → Pages → Source: Deploy from a branch → Branch: main / (root)`. The deployed site uses `index.html` at the repository root.
+
+## License
+
+Released into the public domain under the [Unlicense](https://unlicense.org). Do whatever you want with it.
