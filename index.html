@@ -377,14 +377,28 @@
       <div class="field">
         <label for="format">Code type</label>
         <select id="format" aria-describedby="content-hint">
-          <option value="qr">QR Code</option>
-          <option value="code128">Code 128</option>
-          <option value="code39">Code 39</option>
-          <option value="ean13">EAN-13</option>
-          <option value="ean8">EAN-8</option>
-          <option value="upca">UPC-A</option>
-          <option value="itf">ITF (Interleaved 2 of 5)</option>
-          <option value="datamatrix">Data Matrix</option>
+          <optgroup label="QR Codes">
+            <option value="qr">QR Code</option>
+            <option value="microqr">Micro QR</option>
+          </optgroup>
+          <optgroup label="1D Barcodes">
+            <option value="code128">Code 128</option>
+            <option value="code39">Code 39</option>
+            <option value="ean13">EAN-13</option>
+            <option value="ean8">EAN-8</option>
+            <option value="upca">UPC-A</option>
+            <option value="itf">ITF (Interleaved 2 of 5)</option>
+            <option value="itf14">ITF-14</option>
+            <option value="gs1128">GS1-128</option>
+            <option value="codabar">Codabar</option>
+            <option value="msi">MSI Plessey</option>
+            <option value="pharmacode">Pharmacode</option>
+          </optgroup>
+          <optgroup label="2D Codes">
+            <option value="datamatrix">Data Matrix</option>
+            <option value="pdf417">PDF417</option>
+            <option value="aztec">Aztec</option>
+          </optgroup>
         </select>
       </div>
 
@@ -414,6 +428,41 @@
             <input type="range" id="qr-quiet" min="0" max="128" value="32" step="4">
             <span class="slider-value" id="qr-quiet-val">32</span>
           </div>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <span class="field-label">Character encoding</span>
+          <label class="checkbox-field">
+            <input type="checkbox" id="qr-utf8">
+            UTF-8 (ECI 26)
+          </label>
+          <div class="hint">Marks non-ASCII content with the UTF-8 ECI so strict scanners decode emoji and CJK correctly.</div>
+        </div>
+        <div class="field">
+          <span class="field-label">Structured Append</span>
+          <label class="checkbox-field">
+            <input type="checkbox" id="qr-sam">
+            Split into multiple codes
+          </label>
+          <div class="hint">Chains several QR codes that a scanner reassembles.</div>
+        </div>
+      </div>
+      <div class="field-row" id="qr-sam-row" hidden>
+        <div class="field">
+          <label for="qr-sam-count">Total segments</label>
+          <div class="slider-field">
+            <input type="range" id="qr-sam-count" min="2" max="9" value="2">
+            <span class="slider-value" id="qr-sam-count-val">2</span>
+          </div>
+        </div>
+        <div class="field">
+          <label for="qr-sam-index">Preview segment</label>
+          <div class="slider-field">
+            <input type="range" id="qr-sam-index" min="1" max="2" value="1">
+            <span class="slider-value" id="qr-sam-index-val">1 / 2</span>
+          </div>
+          <div class="hint">Export downloads every segment.</div>
         </div>
       </div>
     </div>
@@ -614,6 +663,13 @@
     qrError:       $('qr-error'),
     qrQuiet:       $('qr-quiet'),
     qrQuietVal:    $('qr-quiet-val'),
+    qrUtf8:        $('qr-utf8'),
+    qrSam:         $('qr-sam'),
+    qrSamRow:      $('qr-sam-row'),
+    qrSamCount:    $('qr-sam-count'),
+    qrSamCountVal: $('qr-sam-count-val'),
+    qrSamIndex:    $('qr-sam-index'),
+    qrSamIndexVal: $('qr-sam-index-val'),
     barcodeOpts:   $('barcode-options'),
     barWidth:      $('bar-width'),
     barWidthVal:   $('bar-width-val'),
@@ -638,27 +694,53 @@
     dim:           $('preview-dim'),
   };
 
-  /* ---------- Format metadata ---------- */
+  /* ---------- Format metadata ----------
+     kind:
+       'qr'        -> QRious (or bwip-js for ECI / Structured Append modes)
+       'jsbarcode' -> JsBarcode SVG pipeline (the original 1D set)
+       'bwip'      -> bwip-js canvas pipeline (new 1D + all 2D formats)
+     bwip-1D formats also set use1d=true so the renderer honours the
+     bar-width / bar-height / caption settings.
+  */
   const FORMATS = {
-    qr:         { kind: 'qr',         label: 'QR Code',   hint: 'Any text, URL, or data. Larger payloads need higher error correction.' },
-    code128:    { kind: 'barcode',    label: 'Code 128',  jb: 'CODE128', hint: 'Alphanumeric. Encodes the full printable ASCII range.' },
-    code39:     { kind: 'barcode',    label: 'Code 39',   jb: 'CODE39',  hint: 'Uppercase A–Z, 0–9, and "-. $/+%". Lowercase is not supported.' },
-    ean13:      { kind: 'barcode',    label: 'EAN-13',    jb: 'EAN13',   hint: '12 or 13 digits. A 13th check digit is computed when omitted.' },
-    ean8:       { kind: 'barcode',    label: 'EAN-8',     jb: 'EAN8',    hint: '7 or 8 digits. An 8th check digit is computed when omitted.' },
-    upca:       { kind: 'barcode',    label: 'UPC-A',     jb: 'UPC',     hint: '11 or 12 digits. The 12th check digit is computed when omitted.' },
-    itf:        { kind: 'barcode',    label: 'ITF',       jb: 'ITF',     hint: 'Digits only, with an even total length.' },
-    datamatrix: { kind: 'datamatrix', label: 'Data Matrix',                hint: 'Compact 2D code that scales from a few bytes up to ~2 KB of data.' },
+    qr:         { kind: 'qr',        label: 'QR Code',      hint: 'Any text, URL, or data. Larger payloads need higher error correction.' },
+    microqr:    { kind: 'bwip',      bcid: 'microqrcode',   use1d: false, label: 'Micro QR',    hint: 'Compact QR variant for very small payloads — up to ~35 alphanumeric characters.' },
+
+    code128:    { kind: 'jsbarcode', jb:   'CODE128',       label: 'Code 128',   hint: 'Alphanumeric. Encodes the full printable ASCII range.' },
+    code39:     { kind: 'jsbarcode', jb:   'CODE39',        label: 'Code 39',    hint: 'Uppercase A–Z, 0–9, and "-. $/+%". Lowercase is not supported.' },
+    ean13:      { kind: 'jsbarcode', jb:   'EAN13',         label: 'EAN-13',     hint: '12 or 13 digits. A 13th check digit is computed when omitted.' },
+    ean8:       { kind: 'jsbarcode', jb:   'EAN8',          label: 'EAN-8',      hint: '7 or 8 digits. An 8th check digit is computed when omitted.' },
+    upca:       { kind: 'jsbarcode', jb:   'UPC',           label: 'UPC-A',      hint: '11 or 12 digits. The 12th check digit is computed when omitted.' },
+    itf:        { kind: 'jsbarcode', jb:   'ITF',           label: 'ITF',        hint: 'Digits only, with an even total length.' },
+
+    itf14:      { kind: 'bwip',      bcid: 'itf14',                  use1d: true,  label: 'ITF-14',     hint: '13 or 14 digits. Used on shipping cartons; the check digit is auto-computed.' },
+    gs1128:     { kind: 'bwip',      bcid: 'gs1-128',                use1d: true,  label: 'GS1-128',    hint: 'GS1 Application Identifier syntax, e.g. (01)09501101530003(17)260101.' },
+    codabar:    { kind: 'bwip',      bcid: 'rationalizedCodabar',    use1d: true,  label: 'Codabar',    hint: 'Digits and "-$:/.+", framed by A/B/C/D start/stop characters, e.g. A12345B.' },
+    msi:        { kind: 'bwip',      bcid: 'msi',                    use1d: true,  label: 'MSI Plessey', hint: 'Digits only. Common on warehouse shelf labels.' },
+    pharmacode: { kind: 'bwip',      bcid: 'pharmacode',             use1d: true,  label: 'Pharmacode', hint: 'A single integer in the range 3 – 131070.' },
+
+    datamatrix: { kind: 'bwip',      bcid: 'datamatrix',             use1d: false, label: 'Data Matrix', hint: 'Compact 2D code that scales from a few bytes up to ~2 KB of data.' },
+    pdf417:     { kind: 'bwip',      bcid: 'pdf417',                 use1d: false, label: 'PDF417',      hint: 'Stacked 2D barcode used on boarding passes, IDs, and shipping labels.' },
+    aztec:      { kind: 'bwip',      bcid: 'azteccode',              use1d: false, label: 'Aztec',       hint: 'Compact 2D code widely used on transit tickets and event passes.' },
   };
 
   const DEFAULT_CONTENT = {
     qr:         'https://example.com',
+    microqr:    'HELLO',
     code128:    'CODE-128-EXAMPLE',
     code39:     'CODE 39',
     ean13:      '5901234123457',
     ean8:       '96385074',
     upca:       '036000291452',
     itf:        '12345670',
+    itf14:      '10012345678902',
+    gs1128:     '(01)09501101530003',
+    codabar:    'A123456B',
+    msi:        '1234567',
+    pharmacode: '12345',
     datamatrix: 'DataMatrix-Example',
+    pdf417:     'PDF417 example payload',
+    aztec:      'Aztec example payload',
   };
 
   /* ---------- State accessor ---------- */
@@ -668,6 +750,10 @@
       content:      els.content.value,
       qrErrorLvl:   els.qrError.value,
       qrQuiet:      parseInt(els.qrQuiet.value, 10),
+      qrUtf8:       els.qrUtf8.checked,
+      qrSam:        els.qrSam.checked,
+      qrSamCount:   parseInt(els.qrSamCount.value, 10),
+      qrSamIndex:   parseInt(els.qrSamIndex.value, 10),
       barWidth:     parseFloat(els.barWidth.value),
       barHeight:    parseInt(els.barHeight.value, 10),
       displayValue: els.displayValue.checked,
@@ -699,8 +785,12 @@
 
   function setVisibility() {
     const meta = FORMATS[els.format.value];
-    els.qrOptions.hidden     = meta.kind !== 'qr';
-    els.barcodeOpts.hidden   = meta.kind !== 'barcode';
+    const isQR = meta.kind === 'qr';
+    const isBwip1d = meta.kind === 'bwip' && meta.use1d;
+    const isJsBar = meta.kind === 'jsbarcode';
+    els.qrOptions.hidden = !isQR;
+    els.barcodeOpts.hidden = !(isBwip1d || isJsBar);
+    els.qrSamRow.hidden = !(isQR && els.qrSam.checked);
     els.contentHint.textContent = meta.hint;
   }
 
@@ -712,6 +802,12 @@
   */
 
   async function renderQR(canvas, s, targetW) {
+    // Switch to the bwip-js engine when the user opts into UTF-8 (ECI 26)
+    // or Structured Append — QRious has no API for either.
+    if (s.qrUtf8 || s.qrSam) {
+      return renderQRBwip(canvas, s, targetW);
+    }
+
     const padding = Math.round(s.padding * targetW / 1024);
     const inner = Math.max(64, targetW - padding * 2);
 
@@ -722,13 +818,13 @@
 
     const tmp = document.createElement('canvas');
     new QRious({
-      element:        tmp,
-      value:          s.content,
-      size:           inner,
-      level:          s.qrErrorLvl,
-      padding:        quietPx,
-      foreground:     s.fg,
-      background:     s.bg,
+      element:         tmp,
+      value:           s.content,
+      size:            inner,
+      level:           s.qrErrorLvl,
+      padding:         quietPx,
+      foreground:      s.fg,
+      background:      s.bg,
       backgroundAlpha: s.transparent ? 0 : 1,
     });
 
@@ -739,7 +835,45 @@
     ctx.drawImage(tmp, padding, padding, inner, inner);
   }
 
-  async function renderBarcode(canvas, s, targetW) {
+  function renderQRBwip(canvas, s, targetW) {
+    const padding = Math.round(s.padding * targetW / 1024);
+    const inner = Math.max(64, targetW - padding * 2);
+    const quietPx = Math.round(s.qrQuiet * inner / 1024);
+    const innerCode = Math.max(32, inner - quietPx * 2);
+
+    const opts = {
+      bcid:         'qrcode',
+      text:         s.content,
+      scale:        8,
+      eclevel:      s.qrErrorLvl,
+      paddingwidth: 0,
+      paddingheight: 0,
+      barcolor:     s.fg.replace('#', ''),
+    };
+    if (!s.transparent) opts.backgroundcolor = s.bg.replace('#', '');
+    if (s.qrUtf8) opts.eci = 26;
+    if (s.qrSam) {
+      // bwip-js wants the Structured Append spec as "<position><total>".
+      const idx = clamp(s.qrSamIndex, 1, s.qrSamCount);
+      opts.sam = String(idx) + String(s.qrSamCount);
+    }
+
+    const tmp = document.createElement('canvas');
+    try {
+      bwipjs.toCanvas(tmp, opts);
+    } catch (err) {
+      throw new Error('Unable to encode QR Code: ' + (err && err.message ? err.message : 'check the content'));
+    }
+
+    canvas.width  = targetW;
+    canvas.height = targetW;
+    const ctx = canvas.getContext('2d');
+    paintBackground(ctx, canvas, s);
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(tmp, padding + quietPx, padding + quietPx, innerCode, innerCode);
+  }
+
+  async function renderJsBarcode(canvas, s, targetW) {
     const meta = FORMATS[s.format];
     const SVG_NS = 'http://www.w3.org/2000/svg';
     const svg = document.createElementNS(SVG_NS, 'svg');
@@ -791,18 +925,36 @@
     }
   }
 
-  async function renderDataMatrix(canvas, s, targetW) {
-    const tmp = document.createElement('canvas');
+  function renderBwip(canvas, s, targetW) {
+    const meta = FORMATS[s.format];
+    const is1d = !!meta.use1d;
+
     const opts = {
-      bcid: 'datamatrix',
-      text: s.content,
-      scale: 12,
+      bcid:         meta.bcid,
+      text:         s.content,
+      scale:        is1d ? Math.max(2, Math.round(s.barWidth * 2)) : 10,
       paddingwidth: 0,
       paddingheight: 0,
-      barcolor: s.fg.replace('#', ''),
+      barcolor:     s.fg.replace('#', ''),
     };
     if (!s.transparent) opts.backgroundcolor = s.bg.replace('#', '');
-    bwipjs.toCanvas(tmp, opts);
+    if (is1d) {
+      // bwip-js expresses bar height in "units" (each unit ≈ 0.36 mm at
+      // scale=2). The on-screen pixel height ≈ height * scale, so we
+      // divide the user-friendly pixel value by an empirical factor to
+      // get a visually consistent result with JsBarcode.
+      opts.height = Math.max(5, Math.round(s.barHeight / 4));
+      opts.includetext = s.displayValue;
+      opts.textsize = Math.max(6, Math.round(s.fontSize / 2));
+      opts.textcolor = s.fg.replace('#', '');
+    }
+
+    const tmp = document.createElement('canvas');
+    try {
+      bwipjs.toCanvas(tmp, opts);
+    } catch (err) {
+      throw new Error('Invalid content for ' + meta.label + '. ' + meta.hint);
+    }
 
     const padding = Math.round(s.padding * targetW / 1024);
     const inner = Math.max(64, targetW - padding * 2);
@@ -815,6 +967,10 @@
     paintBackground(ctx, canvas, s);
     ctx.imageSmoothingEnabled = false;
     ctx.drawImage(tmp, padding, padding, inner, innerH);
+  }
+
+  function clamp(n, lo, hi) {
+    return Math.max(lo, Math.min(hi, n));
   }
 
   function paintBackground(ctx, canvas, s) {
@@ -835,16 +991,19 @@
     });
   }
 
-  async function renderTo(canvas, targetW) {
-    const s = getState();
+  async function renderWithState(canvas, s, targetW) {
     if (!s.content.trim()) {
       throw new Error('Enter some content to encode.');
     }
     const meta = FORMATS[s.format];
-    if (meta.kind === 'qr')             return renderQR(canvas, s, targetW);
-    if (meta.kind === 'barcode')        return renderBarcode(canvas, s, targetW);
-    if (meta.kind === 'datamatrix')     return renderDataMatrix(canvas, s, targetW);
+    if (meta.kind === 'qr')        return renderQR(canvas, s, targetW);
+    if (meta.kind === 'jsbarcode') return renderJsBarcode(canvas, s, targetW);
+    if (meta.kind === 'bwip')      return renderBwip(canvas, s, targetW);
     throw new Error('Unsupported format.');
+  }
+
+  async function renderTo(canvas, targetW) {
+    return renderWithState(canvas, getState(), targetW);
   }
 
   /* ---------- Preview pipeline ---------- */
@@ -883,6 +1042,15 @@
   }
 
   /* ---------- Export ---------- */
+  function downloadCanvas(canvas, baseName) {
+    const link = document.createElement('a');
+    link.download = baseName.replace(/\.png$/i, '') + '.png';
+    link.href = canvas.toDataURL('image/png');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
   async function exportPNG() {
     clearError();
     els.exportBtn.disabled = true;
@@ -891,18 +1059,27 @@
 
     try {
       const s = getState();
-      const canvas = document.createElement('canvas');
-      await renderTo(canvas, s.exportSize);
+      const meta = FORMATS[s.format];
+      const baseName = s.filename.replace(/\.png$/i, '') || 'generated-code';
 
-      const link = document.createElement('a');
-      const name = s.filename.replace(/\.png$/i, '') || 'generated-code';
-      link.download = name + '.png';
-      link.href = canvas.toDataURL('image/png');
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
-      els.status.textContent = 'Exported ' + canvas.width + ' × ' + canvas.height + ' PNG';
+      if (meta.kind === 'qr' && s.qrSam) {
+        // Structured Append: render and download every segment.
+        const total = s.qrSamCount;
+        for (let i = 1; i <= total; i++) {
+          const segState = Object.assign({}, s, { qrSamIndex: i });
+          const canvas = document.createElement('canvas');
+          await renderWithState(canvas, segState, s.exportSize);
+          downloadCanvas(canvas, baseName + '-' + i + 'of' + total);
+          // Brief gap so the browser registers each download separately.
+          await new Promise((r) => setTimeout(r, 250));
+        }
+        els.status.textContent = 'Exported ' + total + ' segment PNGs';
+      } else {
+        const canvas = document.createElement('canvas');
+        await renderTo(canvas, s.exportSize);
+        downloadCanvas(canvas, baseName);
+        els.status.textContent = 'Exported ' + canvas.width + ' × ' + canvas.height + ' PNG';
+      }
     } catch (err) {
       showError(err.message || 'Export failed.');
     } finally {
@@ -954,6 +1131,25 @@
     els.content.addEventListener('input', scheduleUpdate);
     els.qrError.addEventListener('change', scheduleUpdate);
     bindSlider(els.qrQuiet,   els.qrQuietVal);
+    els.qrUtf8.addEventListener('change', scheduleUpdate);
+    els.qrSam.addEventListener('change', () => {
+      setVisibility();
+      scheduleUpdate();
+    });
+    els.qrSamCount.addEventListener('input', () => {
+      const total = parseInt(els.qrSamCount.value, 10);
+      els.qrSamCountVal.textContent = total;
+      els.qrSamIndex.max = total;
+      if (parseInt(els.qrSamIndex.value, 10) > total) {
+        els.qrSamIndex.value = total;
+      }
+      els.qrSamIndexVal.textContent = els.qrSamIndex.value + ' / ' + total;
+      scheduleUpdate();
+    });
+    els.qrSamIndex.addEventListener('input', () => {
+      els.qrSamIndexVal.textContent = els.qrSamIndex.value + ' / ' + els.qrSamCount.value;
+      scheduleUpdate();
+    });
     bindSlider(els.barWidth,  els.barWidthVal);
     bindSlider(els.barHeight, els.barHeightVal);
     els.displayValue.addEventListener('change', scheduleUpdate);
