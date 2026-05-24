@@ -4,45 +4,64 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>QR &amp; Barcode Generator</title>
+<script>
+  // Apply the saved (or default-dark) theme before first paint to avoid
+  // a flash of light-themed content while the rest of the page loads.
+  (function () {
+    try {
+      var saved = localStorage.getItem('theme');
+      document.documentElement.setAttribute('data-theme', saved === 'light' ? 'light' : 'dark');
+    } catch (e) {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    }
+  })();
+</script>
 <style>
+  /* Light theme — warm cream / sepia palette. Avoids pure white to
+     cut down on glare during long sessions. Text is a warm near-black
+     rather than slate, so contrast stays high without feeling cold. */
   :root {
-    --bg: #f4f6fb;
-    --surface: #ffffff;
-    --surface-alt: #f1f4f9;
-    --border: #e2e8f0;
-    --border-strong: #cbd5e1;
-    --text: #0f172a;
-    --text-muted: #64748b;
-    --primary: #4f46e5;
-    --primary-hover: #4338ca;
-    --primary-ring: rgba(79, 70, 229, 0.18);
-    --danger: #dc2626;
-    --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
-    --shadow-md: 0 1px 3px rgba(15, 23, 42, 0.06), 0 4px 16px rgba(15, 23, 42, 0.05);
+    --bg: #f5efe1;
+    --surface: #fbf6ea;
+    --surface-alt: #ede4cf;
+    --border: #ddd1b3;
+    --border-strong: #c5b791;
+    --text: #2c2618;
+    --text-muted: #6b6148;
+    --primary: #6a5dc2;
+    --primary-hover: #574bb3;
+    --primary-ring: rgba(106, 93, 194, 0.18);
+    --danger: #b94a22;
+    --shadow-sm: 0 1px 2px rgba(60, 48, 24, 0.05);
+    --shadow-md: 0 1px 3px rgba(60, 48, 24, 0.07), 0 4px 16px rgba(60, 48, 24, 0.06);
     --radius: 12px;
     --radius-sm: 8px;
     --radius-xs: 6px;
     --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-    --checker: #e3e8ef;
+    --checker: #e6dcc2;
   }
 
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #0b1220;
-      --surface: #131a2b;
-      --surface-alt: #1a2236;
-      --border: #273349;
-      --border-strong: #364463;
-      --text: #e6ecf5;
-      --text-muted: #94a3b8;
-      --primary: #818cf8;
-      --primary-hover: #a5b4fc;
-      --primary-ring: rgba(129, 140, 248, 0.25);
-      --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-      --shadow-md: 0 1px 3px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.35);
-      --checker: #232c40;
-    }
+  /* Dark theme — Material-recommended #121212 base with neutral
+     surfaces. Avoids pure black to keep halation low while still
+     feeling properly dark. Text is a soft off-white with a hint of
+     warmth so it doesn't punch on the eyes; primary keeps a warm
+     purple cast for accent contrast against the neutral field. */
+  :root[data-theme="dark"] {
+    --bg: #121212;
+    --surface: #1d1d1d;
+    --surface-alt: #232323;
+    --border: #2e2e2e;
+    --border-strong: #424242;
+    --text: #e8e6e2;
+    --text-muted: #9c9892;
+    --primary: #b9aaea;
+    --primary-hover: #c9bdf0;
+    --primary-ring: rgba(185, 170, 234, 0.24);
+    --danger: #e07559;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 1px 3px rgba(0, 0, 0, 0.5), 0 8px 24px rgba(0, 0, 0, 0.55);
+    --checker: #1a1a1a;
   }
 
   *, *::before, *::after { box-sizing: border-box; }
@@ -84,7 +103,6 @@
   header h1 .accent { color: var(--primary); }
 
   header .tagline {
-    margin-left: auto;
     font-size: 0.8125rem;
     color: var(--text-muted);
   }
@@ -359,6 +377,50 @@
     overflow: hidden; clip: rect(0 0 0 0);
     white-space: nowrap; border: 0;
   }
+
+  /* Theme toggle button in the header */
+  .brand-end {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .theme-toggle {
+    background: var(--surface-alt);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    padding: 0;
+    transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+  }
+
+  .theme-toggle:hover {
+    color: var(--text);
+    border-color: var(--border-strong);
+  }
+
+  .theme-toggle:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+
+  .theme-icon {
+    width: 1.125rem;
+    height: 1.125rem;
+  }
+
+  /* Show sun in dark mode (click → light); moon in light mode (click → dark). */
+  :root[data-theme="dark"] .theme-icon-moon { display: none; }
+  :root[data-theme="dark"] .theme-icon-sun  { display: inline-block; }
+  :root[data-theme="light"] .theme-icon-sun  { display: none; }
+  :root[data-theme="light"] .theme-icon-moon { display: inline-block; }
 </style>
 </head>
 <body>
@@ -366,7 +428,18 @@
 <header>
   <div class="brand">
     <h1>QR <span class="accent">&amp;</span> Barcode Generator</h1>
-    <span class="tagline">High-quality codes &middot; PNG export up to 4096&times;</span>
+    <div class="brand-end">
+      <span class="tagline">High-quality codes &middot; PNG export up to 4096&times;</span>
+      <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Toggle light and dark theme" title="Toggle theme">
+        <svg class="theme-icon theme-icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="4"/>
+          <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+        </svg>
+        <svg class="theme-icon theme-icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        </svg>
+      </button>
+    </div>
   </div>
 </header>
 
@@ -692,6 +765,7 @@
     canvas:        $('preview-canvas'),
     status:        $('preview-status'),
     dim:           $('preview-dim'),
+    themeToggle:   $('theme-toggle'),
   };
 
   /* ---------- Format metadata ----------
@@ -1164,6 +1238,16 @@
     // Initialize hex inputs from color pickers
     els.fgHex.value = els.fgColor.value.toUpperCase();
     els.bgHex.value = els.bgColor.value.toUpperCase();
+
+    // Theme toggle: flip the data-theme attribute on <html> and persist
+    // the choice. The pre-paint inline script in <head> reads this on
+    // every subsequent load.
+    els.themeToggle.addEventListener('click', () => {
+      const cur = document.documentElement.getAttribute('data-theme') || 'dark';
+      const next = cur === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      try { localStorage.setItem('theme', next); } catch (_) { /* storage blocked */ }
+    });
 
     setVisibility();
     updatePreview();
